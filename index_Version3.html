@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <title>Repro PDF + GPS (mobile)</title>
+
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    integrity="sha256-sA+e2XkG6kGkqk8bT2Gkq0qK0U8y1QqzvN1f3z6k6X8=" crossorigin=""/>
+
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header id="header">
+    <h1>Repro PDF + GPS (mobile)</h1>
+    <div class="controls">
+      <button id="btn-open-file">Ouvrir PDF (picker)</button>
+      <button id="btn-input-file">Choisir PDF (fallback)</button>
+      <button id="btn-geoloc">Demander géoloc</button>
+    </div>
+    <div id="status" aria-live="polite"></div>
+  </header>
+
+  <main>
+    <section id="map-wrap">
+      <div id="map"></div>
+    </section>
+
+    <section id="pdf-wrap">
+      <h2>Aperçu PDF</h2>
+      <div id="pdf-controls" class="pdf-controls">
+        <button id="pdf-prev" disabled>◀ Précédent</button>
+        <span id="pdf-page-info">— / —</span>
+        <button id="pdf-next" disabled>Suivant ▶</button>
+        <button id="pdf-open-iframe">Ouvrir dans viewer natif</button>
+      </div>
+      <div id="pdf-container">
+        <!-- canvas render target (pdf.js) -->
+        <div id="pdf-canvas-wrap"></div>
+        <!-- fallback iframe if rendering fails / user wants native viewer -->
+        <iframe id="pdfPreview" title="PDF preview" style="display:none"></iframe>
+      </div>
+    </section>
+
+    <section id="logwrap">
+      <h2>Logs / erreurs</h2>
+      <pre id="log"></pre>
+    </section>
+  </main>
+
+  <!-- Hidden input fallback -->
+  <input id="fileInput" type="file" accept="application/pdf" style="display:none" />
+
+  <!-- Leaflet JS -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+    integrity="sha256-o9N1j0p9QZ0Yv2gGk0Z/2n3gY9E9zqv0b6cX9b4f0Y8=" crossorigin=""></script>
+
+  <!-- pdf.js -->
+  <script src="https://unpkg.com/pdfjs-dist@3.9.179/build/pdf.min.js"></script>
+
+  <script src="main.js"></script>
+</body>
+</html>
