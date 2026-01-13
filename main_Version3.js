@@ -2,7 +2,7 @@
 // PDF.js worker configuration + rendering multi-page
 if (window['pdfjsLib']) {
   // version CDN ; ajuste si tu veux servir localement
-  pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://unpkg.com/pdfjs-dist@3.9.179/build/pdf.worker.min.js';
+  pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.9.179/pdf.worker.min.js';
 }
 
 const logEl = document.getElementById('log');
