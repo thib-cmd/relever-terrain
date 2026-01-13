@@ -1,28 +1,72 @@
-name: Deploy static site to GitHub Pages
+#!/usr/bin/env bash
+set -euo pipefail
 
-on:
-  push:
-    branches: [ main ]
+REPO_REMOTE="origin"
+BRANCH="feature/pdf-gps-repro"
+WORKER_URL="https://unpkg.com/pdfjs-dist@3.9.179/build/pdf.worker.min.js"
+WORKER_FILE="pdf.worker.min.js"
+JS_FILE="main_Version3.js"
+COMMIT_MSG="fix(pdf): héberger pdf.worker.min.js localement et pointer workerSrc"
 
-permissions:
-  contents: read
-  pages: write
-  id-token: write
+echo "1/ Vérification outils..."
+for cmd in git curl perl; do
+  if ! command -v "$cmd" >/dev/null 2>&1; then
+    echo "Erreur: '$cmd' non trouvé. Installe-le puis relance le script." >&2
+    exit 1
+  fi
+done
 
-jobs:
-  build-and-deploy:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+echo "2/ Synchronisation et branche..."
+git fetch "$REPO_REMOTE"
 
-      - name: Configure Pages
-        uses: actions/configure-pages@v3
+# Si la branche locale n'existe pas, crée-la depuis main
+if git show-ref --verify --quiet "refs/heads/$BRANCH"; then
+  git checkout "$BRANCH"
+  git pull "$REPO_REMOTE" "$BRANCH" || true
+else
+  # S'il existe sur le remote, checkout remote branch ; sinon creer depuis main
+  if git ls-remote --heads "$REPO_REMOTE" "refs/heads/$BRANCH" | grep -q "$BRANCH"; then
+    git checkout -b "$BRANCH" "$REPO_REMOTE/$BRANCH"
+  else
+    git checkout main
+    git pull "$REPO_REMOTE" main
+    git checkout -b "$BRANCH"
+  fi
+fi
 
-      - name: Upload artifact for GitHub Pages
-        uses: actions/upload-pages-artifact@v1
-        with:
-          path: ./
+echo "Branche actuelle: $(git branch --show-current)"
 
-      - name: Deploy to GitHub Pages
-        uses: actions/deploy-pages@v1
+echo "3/ Téléchargement du worker PDF.js depuis:"
+echo "   $WORKER_URL"
+curl -L -f "$WORKER_URL" -o "$WORKER_FILE"
+
+echo "4/ Modification de $JS_FILE pour pointer le worker local..."
+# Utilise perl pour remplacer la ligne workerSrc — plus portable que sed (BSD vs GNU)
+if [ -f "$JS_FILE" ]; then
+  perl -0777 -pe "s|pdfjsLib\.GlobalWorkerOptions\.workerSrc\s*=\s*['\"][^'\"]*['\"];|pdfjsLib.GlobalWorkerOptions.workerSrc = './${WORKER_FILE}';|g" -i "$JS_FILE"
+else
+  echo "Erreur: $JS_FILE introuvable dans la racine. Vérifie le chemin." >&2
+  exit 1
+fi
+
+echo "5/ Git add / commit / push"
+git add "$WORKER_FILE" "$JS_FILE"
+git commit -m "$COMMIT_MSG" || echo "Rien à committer (pas de changements)."
+git push "$REPO_REMOTE" "$BRANCH"
+
+echo "6/ Création de la PR (si GitHub CLI 'gh' disponible)..."
+if command -v gh >/dev/null 2>&1; then
+  echo "gh trouvé — création PR automatiquement..."
+  gh pr create --fill --base main --head "$BRANCH" --title "fix(pdf): héberger pdf.worker localement" \
+    --body $'Ajoute pdf.worker.min.js localement et pointe pdfjsLib.GlobalWorkerOptions.workerSrc vers ./pdf.worker.min.js pour éviter 404/CORS depuis les CDN.\n\nTest: après merge, le worker sera disponible à https://thib-cmd.github.io/relever-terrain/pdf.worker.min.js'
+  echo "PR créée (si gh a été configuré correctement)."
+else
+  echo
+  echo "gh (GitHub CLI) non trouvé — crée la PR manuellement en ouvrant cette URL :"
+  echo "https://github.com/thib-cmd/relever-terrain/compare/main...${BRANCH}?expand=1"
+fi
+
+echo
+echo "Terminé. Vérifie la PR (si créée) et/ou teste la ressource:"
+echo " - Worker local (après merge + deploy Pages): https://thib-cmd.github.io/relever-terrain/${WORKER_FILE}"
+echo " - Page repro: https://thib-cmd.github.io/relever-terrain/"
